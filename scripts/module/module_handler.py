@@ -299,10 +299,10 @@ if __name__ == '__main__':
             if arguments["create_git_ignore"]:
 
                 # Don't update if we are not in the main repository
-                from is_master_repository import is_master_repository
-                if not is_master_repository:
-                    print >>  sys.stderr, 'Not in the master repo'
-                    sys.exit(0)
+                #from is_master_repository import is_master_repository
+                #if not is_master_repository:
+                #    print >>  sys.stderr, 'Not in the master repo'
+                #    sys.exit(0)
 
                 path = os.path.join(module_abs, ".gitignore")
 
