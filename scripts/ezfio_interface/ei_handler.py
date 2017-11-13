@@ -77,7 +77,7 @@ import ConfigParser
 from collections import defaultdict
 from collections import namedtuple
 
-from decorator import cache
+from qp_decorator import cache
 
 from os import listdir
 from os.path import isdir, join, exists

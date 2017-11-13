@@ -6,5 +6,17 @@ build.ninja
 .ninja_deps
 bin/
 lib/
+lib64/
 config/qp_create_ninja.pickle
 src/*/.gitignore
+src/.gitignore
+tests/
+src/*/ezfio_interface.irp.f
+plugins/*/.gitignore
+plugins/*/ezfio_interface.irp.f
+.directory
+include/*
+install/*
+src/ZMQ/f77_zmq.h
+share/man/man3/zlib.3
+plugins/GPI2/GASPI.f90
