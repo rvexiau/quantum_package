@@ -8,7 +8,6 @@ copy_buffer
 declarations
 decls_main
 deinit_thread
-skip
 init_main
 filter_integrals
 filter2p
@@ -33,7 +32,6 @@ filter_only_1h2p_double
 filter_only_2h2p_single
 filter_only_2h2p_double
 filterhole
-filter_integrals
 filter_only_1h1p_double
 filter_only_1h1p_single
 filterparticle
@@ -57,7 +55,6 @@ parameters
 params_main
 printout_always
 printout_now
-skip
 subroutine
 """.split()
 
@@ -83,25 +80,24 @@ class H_apply(object):
     self.energy = "CI_electronic_energy"
     self.perturbation = None
     self.do_double_exc = do_double_exc
-   #s["omp_parallel"]     = """!$OMP PARALLEL DEFAULT(NONE)          &
-    s["omp_parallel"]     = """ PROVIDE elec_num_tab
-        !$OMP PARALLEL DEFAULT(SHARED)        &
-        !$OMP PRIVATE(i,j,k,l,keys_out,hole,particle,                &
-        !$OMP  occ_particle,occ_hole,j_a,k_a,other_spin,             &
-        !$OMP  hole_save,ispin,jj,l_a,ib_jb_pairs,array_pairs,       &
-        !$OMP  accu,i_a,hole_tmp,particle_tmp,occ_particle_tmp,      &
-        !$OMP  occ_hole_tmp,key_idx,i_b,j_b,key,N_elec_in_key_part_1,&
-        !$OMP  N_elec_in_key_hole_1,N_elec_in_key_part_2,            &
-        !$OMP  N_elec_in_key_hole_2,ia_ja_pairs,key_union_hole_part) &
-        !$OMP SHARED(key_in,N_int,elec_num_tab,mo_tot_num,           &
-        !$OMP  hole_1, particl_1, hole_2, particl_2,                 &
-        !$OMP  elec_alpha_num,i_generator) FIRSTPRIVATE(iproc)"""
-    s["omp_end_parallel"] = "!$OMP END PARALLEL"
-    s["omp_master"]       = "!$OMP MASTER"
-    s["omp_end_master"]   = "!$OMP END MASTER"
-    s["omp_barrier"]      = "!$OMP BARRIER"
-    s["omp_do"]           = "!$OMP DO SCHEDULE (static,1)"
-    s["omp_enddo"]        = "!$OMP ENDDO NOWAIT"
+#    s["omp_parallel"]     = """ PROVIDE elec_num_tab
+#        !$OMP PARALLEL DEFAULT(SHARED)        &
+#        !$OMP PRIVATE(i,j,k,l,keys_out,hole,particle,                &
+#        !$OMP  occ_particle,occ_hole,j_a,k_a,other_spin,             &
+#        !$OMP  hole_save,ispin,jj,l_a,ib_jb_pairs,array_pairs,       &
+#        !$OMP  accu,i_a,hole_tmp,particle_tmp,occ_particle_tmp,      &
+#        !$OMP  occ_hole_tmp,key_idx,i_b,j_b,key,N_elec_in_key_part_1,&
+#        !$OMP  N_elec_in_key_hole_1,N_elec_in_key_part_2,            &
+#        !$OMP  N_elec_in_key_hole_2,ia_ja_pairs,key_union_hole_part) &
+#        !$OMP SHARED(key_in,N_int,elec_num_tab,mo_tot_num,           &
+#        !$OMP  hole_1, particl_1, hole_2, particl_2,                 &
+#        !$OMP  elec_alpha_num,i_generator) FIRSTPRIVATE(iproc)"""
+#    s["omp_end_parallel"] = "!$OMP END PARALLEL"
+#    s["omp_master"]       = "!$OMP MASTER"
+#    s["omp_end_master"]   = "!$OMP END MASTER"
+#    s["omp_barrier"]      = "!$OMP BARRIER"
+#    s["omp_do"]           = "!$OMP DO SCHEDULE (static,1)"
+#    s["omp_enddo"]        = "!$OMP ENDDO"
 
     d = { True : '.True.', False : '.False.'}
     s["do_mono_excitations"] = d[do_mono_exc]
@@ -146,7 +142,7 @@ class H_apply(object):
   endif
   SOFT_TOUCH psi_det psi_coef N_det
 """
-    s["printout_now"]   = """write(output_determinants,*)  &
+    s["printout_now"]   = """write(6,*)  &
        100.*float(i_generator)/float(N_det_generators), '% in ', wall_1-wall_0, 's'"""
     self.data = s
 
@@ -290,11 +286,6 @@ class H_apply(object):
     """
 
 
-  def unset_skip(self):
-    self["skip"] = """
-    """
-
-
   def set_filter_2h_2p(self):
     self["filter2h2p_double"] = """
      if (is_a_two_holes_two_particles(key)) cycle
@@ -379,9 +370,9 @@ class H_apply(object):
     delta_pt2(k) = 0.d0
     pt2_old(k) = 0.d0
   enddo
-        write(output_determinants,'(A12, 1X, A8, 3(2X, A9), 2X, A8, 2X, A8, 2X, A8)') &
+        write(6,'(A12, 1X, A8, 3(2X, A9), 2X, A8, 2X, A8, 2X, A8)') &
                  'N_generators', 'Norm', 'Delta PT2', 'PT2', 'Est. PT2', 'secs'
-        write(output_determinants,'(A12, 1X, A8, 3(2X, A9), 2X, A8, 2X, A8, 2X, A8)') &
+        write(6,'(A12, 1X, A8, 3(2X, A9), 2X, A8, 2X, A8, 2X, A8)') &
                  '============', '========', '=========', '=========', '=========', &
                  '========='
       """ 
@@ -394,16 +385,16 @@ class H_apply(object):
       """
       self.data["printout_now"] = """
       do k=1,N_st
-        write(output_determinants,'(I10, 4(2X, F9.6), 2X, F8.1)') &
+        write(6,'(I10, 4(2X, F9.6), 2X, F8.1)') &
                  i_generator, norm_psi(k), delta_pt2(k), pt2(k), &
                  pt2(k)/(norm_psi(k)*norm_psi(k)), &
                  wall_1-wall_0
          pt2_old(k) = pt2(k)
       enddo
       """
-      self.data["omp_parallel"]    += """&
- !$OMP SHARED(N_st) PRIVATE(e_2_pert_buffer,coef_pert_buffer) &
- !$OMP PRIVATE(sum_e_2_pert, sum_norm_pert, sum_H_pert_diag)"""
+#      self.data["omp_parallel"]    += """&
+# !$OMP SHARED(N_st) PRIVATE(e_2_pert_buffer,coef_pert_buffer) &
+# !$OMP PRIVATE(sum_e_2_pert, sum_norm_pert, sum_H_pert_diag)"""
 
   def set_selection_pt2(self,pert):
     if self.selection_pt2 is not None:
@@ -425,7 +416,7 @@ class H_apply(object):
       SOFT_TOUCH psi_det psi_coef N_det
       selection_criterion_min = min(selection_criterion_min, maxval(select_max))*0.1d0
       selection_criterion = selection_criterion_min
-      call write_double(output_determinants,selection_criterion,'Selection criterion')
+      call write_double(6,selection_criterion,'Selection criterion')
       """
       self.data["keys_work"] = """
       e_2_pert_buffer = 0.d0
@@ -435,22 +426,8 @@ class H_apply(object):
       call fill_H_apply_buffer_selection(key_idx,keys_out,e_2_pert_buffer, &
         coef_pert_buffer,N_st,N_int,iproc,select_max_out) 
       """
-      self.data["omp_parallel"]    += """&
- !$OMP REDUCTION (max:select_max_out)"""
-      self.data["skip"] = """
-      if (i_generator < size_select_max) then
-        if (select_max(i_generator) < selection_criterion_min*selection_criterion_factor) then
-          ! OMP CRITICAL
-          do k=1,N_st
-            norm_psi(k) = norm_psi(k) + psi_coef_generators(i_generator,k)*psi_coef_generators(i_generator,k)
-            pt2_old(k) = 0.d0
-          enddo
-          ! OMP END CRITICAL
-          cycle
-        endif
-        select_max(i_generator) = 0.d0
-      endif
-      """
+#      self.data["omp_parallel"]    += """&
+# !$OMP REDUCTION (max:select_max_out)"""
 
 
   def unset_openmp(self):
@@ -499,15 +476,4 @@ class H_apply_zmq(H_apply):
 
   def set_selection_pt2(self,pert):
      H_apply.set_selection_pt2(self,pert)
-     self.data["skip"] = """
-      if (i_generator < size_select_max) then
-        if (select_max(i_generator) < selection_criterion_min*selection_criterion_factor) then
-          do k=1,N_st
-            pt2(k) = select_max(i_generator)
-          enddo
-          cycle
-        endif
-        select_max(i_generator) = 0.d0
-      endif
-      """
 

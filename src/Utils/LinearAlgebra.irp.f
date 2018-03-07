@@ -70,7 +70,7 @@ subroutine ortho_canonical(overlap,LDA,N,C,LDC,m)
   double precision, allocatable  :: Vt(:,:)
   double precision, allocatable  :: D(:)
   double precision, allocatable  :: S(:,:)
-  !DEC$ ATTRIBUTES ALIGN : 64    :: U, Vt, D
+  !DIR$ ATTRIBUTES ALIGN : 64    :: U, Vt, D
   integer                        :: info, i, j
   
   if (n < 2) then
@@ -81,10 +81,11 @@ subroutine ortho_canonical(overlap,LDA,N,C,LDC,m)
 
   call svd(overlap,lda,U,ldc,D,Vt,lda,n,n)
 
+  D(:) = dsqrt(D(:))
   m=n
   do i=1,n
     if ( D(i) >= 1.d-6 ) then
-      D(i) = 1.d0/dsqrt(D(i))
+      D(i) = 1.d0/D(i)
     else
       m = i-1
       print *,  'Removed Linear dependencies below:', 1.d0/D(m)
@@ -101,25 +102,19 @@ subroutine ortho_canonical(overlap,LDA,N,C,LDC,m)
     endif
   enddo
 
-
-  !$OMP PARALLEL DEFAULT(NONE) &
-  !$OMP SHARED(S,U,D,Vt,n,C,m) &
-  !$OMP PRIVATE(i,j)
-
-  !$OMP DO
   do j=1,n
     do i=1,n
       S(i,j) = U(i,j)*D(j)
     enddo
+  enddo
+
+  do j=1,n
     do i=1,n
       U(i,j) = C(i,j)
     enddo
   enddo
-  !$OMP END DO
   
-  !$OMP END PARALLEL
-
-  call dgemm('N','N',n,m,n,1.d0,U,size(U,1),S,size(S,1),0.d0,C,size(C,1))
+  call dgemm('N','N',n,n,n,1.d0,U,size(U,1),S,size(S,1),0.d0,C,size(C,1))
   deallocate (U, Vt, D, S)
   
 end
@@ -280,7 +275,7 @@ subroutine get_inverse(A,LDA,m,C,LDC)
   integer                        :: info,lwork
   integer, allocatable           :: ipiv(:)
   double precision,allocatable   :: work(:)
-  allocate (ipiv(ao_num), work(ao_num*ao_num))
+  allocate (ipiv(m), work(m*m))
   lwork = size(work)
   C(1:m,1:m) = A(1:m,1:m)
   call dgetrf(m,m,C,size(C,1),ipiv,info)

@@ -5,8 +5,44 @@ program read_integrals
 ! - nuclear_mo
 ! - bielec_mo
   END_DOC
+
+  integer :: iunit
+  integer :: getunitandopen
+  integer :: i,j,n
+
   PROVIDE ezfio_filename
   call ezfio_set_integrals_monoelec_disk_access_mo_one_integrals("None")
+
+  logical :: has
+  call ezfio_has_mo_basis_mo_tot_num(has)
+  if (.not.has) then
+
+    iunit = getunitandopen('nuclear_mo','r')
+    n=0
+    do 
+      read (iunit,*,end=12) i
+      n = max(n,i)
+    enddo
+    12 continue
+    close(iunit)
+    call ezfio_set_mo_basis_mo_tot_num(n)
+
+    call ezfio_has_ao_basis_ao_num(has)
+    mo_label = "None"
+    if (has) then
+      call huckel_guess
+    else
+      call ezfio_set_ao_basis_ao_num(n)
+      double precision, allocatable :: X(:,:)
+      allocate (X(n,n))
+      X = 0.d0
+      do i=1,n
+        X(i,i) = 1.d0
+      enddo
+      call ezfio_set_mo_basis_mo_coef(X)
+      call save_mos
+    endif
+  endif
   call run
 end
 
@@ -28,7 +64,7 @@ subroutine run
    
   call ezfio_get_mo_basis_mo_tot_num(mo_tot_num)
 
-  allocate (A(mo_tot_num_align,mo_tot_num))
+  allocate (A(mo_tot_num,mo_tot_num))
   A = 0.d0
   
   iunit = getunitandopen('kinetic_mo','r')
@@ -69,9 +105,10 @@ subroutine run
   13 continue
   close(iunit)
   
-  call insert_into_mo_integrals_map(n_integrals,buffer_i,buffer_values,0.d0)
+  call map_append(mo_integrals_map, buffer_i, buffer_values, n_integrals)
 
   call map_sort(mo_integrals_map)
+  call map_unique(mo_integrals_map)
 
   call map_save_to_disk(trim(ezfio_filename)//'/work/mo_ints',mo_integrals_map)
   call ezfio_set_integrals_bielec_disk_access_mo_integrals("Read")

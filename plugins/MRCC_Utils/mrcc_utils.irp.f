@@ -195,34 +195,34 @@ END_PROVIDER
    
    if (diag_algorithm == "Davidson") then
      
-     allocate (eigenvectors(size(CI_eigenvectors_dressed,1),size(CI_eigenvectors_dressed,2)), &
-     eigenvalues(size(CI_electronic_energy_dressed,1)))
+     allocate (eigenvectors(size(CI_eigenvectors_dressed,1),size(CI_eigenvectors_dressed,2)),&
+         eigenvalues(size(CI_electronic_energy_dressed,1)))
      do j=1,min(N_states,N_det)
        do i=1,N_det
          eigenvectors(i,j) = psi_coef(i,j)
        enddo
      enddo
      do mrcc_state=1,N_states
-      do j=mrcc_state,min(N_states,N_det)
-        do i=1,N_det
-          eigenvectors(i,j) = psi_coef(i,j)
-        enddo
-      enddo
-      call davidson_diag_mrcc_HS2(psi_det,eigenvectors,&
-            size(eigenvectors,1), &
-            eigenvalues,N_det,N_states,N_states_diag,N_int, &
-            output_determinants,mrcc_state)
-      CI_eigenvectors_dressed(1:N_det,mrcc_state) = eigenvectors(1:N_det,mrcc_state)
-      CI_electronic_energy_dressed(mrcc_state) = eigenvalues(mrcc_state)
-   enddo
-   do k=N_states+1,N_states_diag
-     CI_eigenvectors_dressed(1:N_det,k) = eigenvectors(1:N_det,k)
-     CI_electronic_energy_dressed(k) = eigenvalues(k)
-   enddo
-   call u_0_S2_u_0(CI_eigenvectors_s2_dressed,CI_eigenvectors_dressed,N_det,psi_det,N_int,&
-          N_states_diag,size(CI_eigenvectors_dressed,1))
-
-   deallocate (eigenvectors,eigenvalues)
+       do j=mrcc_state,min(N_states,N_det)
+         do i=1,N_det
+           eigenvectors(i,j) = psi_coef(i,j)
+         enddo
+       enddo
+       call davidson_diag_mrcc_HS2(psi_det,eigenvectors,             &
+           size(eigenvectors,1),                                     &
+           eigenvalues,N_det,N_states,N_states_diag,N_int,           &
+           6,mrcc_state)
+       CI_eigenvectors_dressed(1:N_det,mrcc_state) = eigenvectors(1:N_det,mrcc_state)
+       CI_electronic_energy_dressed(mrcc_state) = eigenvalues(mrcc_state)
+     enddo
+     do k=N_states+1,N_states_diag
+       CI_eigenvectors_dressed(1:N_det,k) = eigenvectors(1:N_det,k)
+       CI_electronic_energy_dressed(k) = eigenvalues(k)
+     enddo
+     call u_0_S2_u_0(CI_eigenvectors_s2_dressed,CI_eigenvectors_dressed,N_det,psi_det,N_int,&
+         N_states_diag,size(CI_eigenvectors_dressed,1))
+     
+     deallocate (eigenvectors,eigenvalues)
      
    else if (diag_algorithm == "Lapack") then
      
@@ -316,12 +316,12 @@ BEGIN_PROVIDER [ double precision, CI_energy_dressed, (N_states_diag) ]
   
   integer                        :: j
   character*(8)                  :: st
-  call write_time(output_determinants)
+  call write_time(6)
   do j=1,min(N_det,N_states)
     write(st,'(I4)') j
     CI_energy_dressed(j) = CI_electronic_energy_dressed(j) + nuclear_repulsion
-    call write_double(output_determinants,CI_energy_dressed(j),'Energy of state '//trim(st))
-    call write_double(output_determinants,CI_eigenvectors_s2_dressed(j),'S^2 of state '//trim(st))
+    call write_double(6,CI_energy_dressed(j),'Energy of state '//trim(st))
+    call write_double(6,CI_eigenvectors_s2_dressed(j),'S^2 of state '//trim(st))
   enddo
 
 END_PROVIDER

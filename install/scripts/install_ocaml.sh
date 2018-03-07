@@ -5,11 +5,12 @@ QP_ROOT=$PWD
 cd -
 
 # Normal installation
-PACKAGES="core cryptokit.1.10 ocamlfind sexplib ZMQ ppx_sexp_conv ppx_deriving"
+PACKAGES="core.v0.10.0 cryptokit ocamlfind sexplib.v0.10.0 ZMQ ppx_sexp_conv ppx_deriving"
 
 # Needed for ZeroMQ
 export C_INCLUDE_PATH="${QP_ROOT}"/include:"${C_INCLUDE_PATH}"
 export LIBRARY_PATH="${QP_ROOT}"/lib:"${LIBRARY_PATH}"
+export LDFLAGS="-L$QP_ROOT/lib"
 export LD_LIBRARY_PATH="${QP_ROOT}"/lib:"${LD_LIBRARY_PATH}"
 
 # return 0 if program version is equal or greater than check version
@@ -51,6 +52,7 @@ check_version 4.6 $i
 if [[ $? == 1 ]]
 then
    echo "GCC version $(gcc -dumpversion) too old. GCC >= 4.6 required."
+   rm ${QP_ROOT}/bin/opam
    exit 1
 fi
 
@@ -63,7 +65,7 @@ fi
 cd Downloads || exit 1
 chmod +x  ocaml.sh || exit 1
 
-echo N | ./ocaml.sh ${QP_ROOT}/bin/ 4.04.2 || exit 1
+echo N | ./ocaml.sh ${QP_ROOT}/bin/ 4.06.0 || exit 1
 
 ${QP_ROOT}/bin/opam config setup -a -q || exit 1
 

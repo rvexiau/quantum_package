@@ -26,7 +26,7 @@ if do_pseudo:
 
     l_element_raw = data_raw.split("\n")
     l_element = [element_raw.split() for element_raw in l_element_raw]
-    d_z = dict((abr, z) for (z, abr, ele) in l_element)
+    d_z = dict((abr, z) for (z, abr, ele, _) in filter(lambda x: x != [], l_element) )
 else:
     print "do_pseudo False"
 
@@ -345,7 +345,10 @@ print "mo_num", mo_num
 print "det_num", n_det
 print ""
 
-state = 0
+if "QP_STATE" in os.environ:
+  state = int(os.environ["QP_STATE"])-1
+else:
+  state = 0
 psi_coef = psi_coef[state]
 
 encode = 8*bit_kind

@@ -1,4 +1,4 @@
- BEGIN_PROVIDER [ double precision, ao_cart_to_sphe_coef, (ao_num_align,ao_num)]
+ BEGIN_PROVIDER [ double precision, ao_cart_to_sphe_coef, (ao_num,ao_num)]
 &BEGIN_PROVIDER [ integer, ao_cart_to_sphe_num ]
   implicit none
   BEGIN_DOC
@@ -83,7 +83,7 @@ END_PROVIDER
 
 
 
-BEGIN_PROVIDER [ double precision, ao_ortho_canonical_coef_inv, (ao_num_align,ao_num)]
+BEGIN_PROVIDER [ double precision, ao_ortho_canonical_coef_inv, (ao_num,ao_num)]
  implicit none
  BEGIN_DOC
 ! ao_ortho_canonical_coef^(-1)
@@ -92,7 +92,7 @@ BEGIN_PROVIDER [ double precision, ao_ortho_canonical_coef_inv, (ao_num_align,ao
      ao_num, ao_ortho_canonical_coef_inv, size(ao_ortho_canonical_coef_inv,1))
 END_PROVIDER
 
- BEGIN_PROVIDER [ double precision, ao_ortho_canonical_coef, (ao_num_align,ao_num)]
+ BEGIN_PROVIDER [ double precision, ao_ortho_canonical_coef, (ao_num,ao_num)]
 &BEGIN_PROVIDER [ integer, ao_ortho_canonical_num ]
   implicit none
   BEGIN_DOC
@@ -129,7 +129,7 @@ END_PROVIDER
     enddo
 
     ao_ortho_canonical_num = ao_cart_to_sphe_num
-    call ortho_canonical (ao_cart_to_sphe_overlap, size(ao_cart_to_sphe_overlap,1), &
+    call ortho_canonical(ao_cart_to_sphe_overlap, size(ao_cart_to_sphe_overlap,1), &
       ao_cart_to_sphe_num, S, size(S,1), ao_ortho_canonical_num)
 
     call dgemm('N','N', ao_num, ao_ortho_canonical_num, ao_cart_to_sphe_num, 1.d0, &

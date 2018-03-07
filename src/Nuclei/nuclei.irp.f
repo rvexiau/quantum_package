@@ -1,66 +1,68 @@
-BEGIN_PROVIDER [ integer, nucl_num_aligned ]
-   implicit none
-   BEGIN_DOC
-   ! Number of nuclei algined
-   END_DOC
-   
-   PROVIDE ezfio_filename
-   integer                        :: align_double
-   nucl_num_aligned = align_double(nucl_num)
-END_PROVIDER
- 
-BEGIN_PROVIDER [ double precision, nucl_coord,  (nucl_num_aligned,3) ]
+BEGIN_PROVIDER [ double precision, nucl_coord,  (nucl_num,3) ]
    implicit none
    
    BEGIN_DOC
    ! Nuclear coordinates in the format (:, {x,y,z})
    END_DOC
-   PROVIDE ezfio_filename
+   PROVIDE ezfio_filename nucl_label nucl_charge
    
-   double precision, allocatable  :: buffer(:,:)
-   nucl_coord = 0.d0
-   allocate (buffer(nucl_num,3))
-   buffer = 0.d0
-   logical                        :: has
-   call ezfio_has_nuclei_nucl_coord(has)
-   if (.not.has) then
-     print *, irp_here
-     stop 1
-   endif
-   call ezfio_get_nuclei_nucl_coord(buffer)
-   integer                        :: i,j
-   
-   do i=1,3
-     do j=1,nucl_num
-       nucl_coord(j,i) = buffer(j,i)
+   if (mpi_master) then
+     double precision, allocatable  :: buffer(:,:)
+     nucl_coord = 0.d0
+     allocate (buffer(nucl_num,3))
+     buffer = 0.d0
+     logical                        :: has
+     call ezfio_has_nuclei_nucl_coord(has)
+     if (.not.has) then
+       print *, irp_here
+       stop 1
+     endif
+     call ezfio_get_nuclei_nucl_coord(buffer)
+     integer                        :: i,j
+     
+     do i=1,3
+       do j=1,nucl_num
+         nucl_coord(j,i) = buffer(j,i)
+       enddo
      enddo
-   enddo
-   deallocate(buffer)
+     deallocate(buffer)
+     
+     character*(64), parameter      :: f = '(A16, 4(1X,F12.6))'
+     character*(64), parameter      :: ft= '(A16, 4(1X,A12  ))'
+     double precision, parameter    :: a0= 0.529177249d0
+     
+     call write_time(6)
+     write(6,'(A)') ''
+     write(6,'(A)') 'Nuclear Coordinates (Angstroms)'
+     write(6,'(A)') '==============================='
+     write(6,'(A)') ''
+     write(6,ft)                                         &
+         '================','============','============','============','============'
+     write(6,*)                                          &
+         '     Atom          Charge          X            Y            Z '
+     write(6,ft)                                         &
+         '================','============','============','============','============'
+     do i=1,nucl_num
+       write(6,f) nucl_label(i), nucl_charge(i),         &
+           nucl_coord(i,1)*a0,                                       &
+           nucl_coord(i,2)*a0,                                       &
+           nucl_coord(i,3)*a0
+     enddo
+     write(6,ft)                                         &
+         '================','============','============','============','============'
+     write(6,'(A)') ''
+     
+   endif
    
-   character*(64), parameter      :: f = '(A16, 4(1X,F12.6))'
-   character*(64), parameter      :: ft= '(A16, 4(1X,A12  ))'
-   double precision, parameter    :: a0= 0.529177249d0
-   call write_time(output_Nuclei)
-   write(output_Nuclei,'(A)') ''
-   write(output_Nuclei,'(A)') 'Nuclear Coordinates (Angstroms)'
-   write(output_Nuclei,'(A)') '==============================='
-   write(output_Nuclei,'(A)') ''
-   write(output_Nuclei,ft)                                           &
-       '================','============','============','============','============'
-   write(output_Nuclei,*)                                            &
-       '     Atom          Charge          X            Y            Z '
-   write(output_Nuclei,ft)                                           &
-       '================','============','============','============','============'
-   do i=1,nucl_num
-     write(output_Nuclei,f) nucl_label(i), nucl_charge(i),           &
-         nucl_coord(i,1)*a0,                                         &
-         nucl_coord(i,2)*a0,                                         &
-         nucl_coord(i,3)*a0
-   enddo
-   write(output_Nuclei,ft)                                           &
-       '================','============','============','============','============'
-   write(output_Nuclei,'(A)') ''
-   
+   IRP_IF MPI
+     include 'mpif.h'
+     integer                        :: ierr
+     call MPI_BCAST( nucl_coord, 3*nucl_num, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+     if (ierr /= MPI_SUCCESS) then
+       stop 'Unable to read nucl_coord with MPI'
+     endif
+   IRP_ENDIF
+
 END_PROVIDER
  
  
@@ -79,11 +81,11 @@ BEGIN_PROVIDER [ double precision, nucl_coord_transp, (3,nucl_num) ]
    enddo
 END_PROVIDER
  
- BEGIN_PROVIDER [ double precision, nucl_dist_2, (nucl_num_aligned,nucl_num) ]
-&BEGIN_PROVIDER [ double precision, nucl_dist_vec_x, (nucl_num_aligned,nucl_num) ]
-&BEGIN_PROVIDER [ double precision, nucl_dist_vec_y, (nucl_num_aligned,nucl_num) ]
-&BEGIN_PROVIDER [ double precision, nucl_dist_vec_z, (nucl_num_aligned,nucl_num) ]
-&BEGIN_PROVIDER [ double precision, nucl_dist, (nucl_num_aligned,nucl_num) ]
+ BEGIN_PROVIDER [ double precision, nucl_dist_2, (nucl_num,nucl_num) ]
+&BEGIN_PROVIDER [ double precision, nucl_dist_vec_x, (nucl_num,nucl_num) ]
+&BEGIN_PROVIDER [ double precision, nucl_dist_vec_y, (nucl_num,nucl_num) ]
+&BEGIN_PROVIDER [ double precision, nucl_dist_vec_z, (nucl_num,nucl_num) ]
+&BEGIN_PROVIDER [ double precision, nucl_dist, (nucl_num,nucl_num) ]
    implicit none
    BEGIN_DOC
    ! nucl_dist     : Nucleus-nucleus distances
@@ -105,16 +107,12 @@ END_PROVIDER
    endif
    
    do ie2 = 1,nucl_num
-     !DEC$ VECTOR ALWAYS
-     !DEC$ VECTOR ALIGNED
-     do ie1 = 1,nucl_num_aligned
+     do ie1 = 1,nucl_num
        nucl_dist_vec_x(ie1,ie2) = nucl_coord(ie1,1) - nucl_coord(ie2,1)
        nucl_dist_vec_y(ie1,ie2) = nucl_coord(ie1,2) - nucl_coord(ie2,2)
        nucl_dist_vec_z(ie1,ie2) = nucl_coord(ie1,3) - nucl_coord(ie2,3)
      enddo
-     !DEC$ VECTOR ALWAYS
-     !DEC$ VECTOR ALIGNED
-     do ie1 = 1,nucl_num_aligned
+     do ie1 = 1,nucl_num
        nucl_dist_2(ie1,ie2) = nucl_dist_vec_x(ie1,ie2)*nucl_dist_vec_x(ie1,ie2) +&
            nucl_dist_vec_y(ie1,ie2)*nucl_dist_vec_y(ie1,ie2) +       &
            nucl_dist_vec_z(ie1,ie2)*nucl_dist_vec_z(ie1,ie2)
@@ -147,128 +145,120 @@ BEGIN_PROVIDER [ double precision, nuclear_repulsion ]
    ! Nuclear repulsion energy
    END_DOC
 
-   IF (disk_access_nuclear_repulsion.EQ.'Read') THEN
-          print*, 'nuclear_repulsion read from disk'
-          LOGICAL :: has
-          call ezfio_has_nuclei_nuclear_repulsion(has)
-          if (has) then
-                 call ezfio_get_nuclei_nuclear_repulsion(nuclear_repulsion)
-          else
-                 print *, 'nuclei/nuclear_repulsion not found in EZFIO file'
-                 stop 1
-          endif
+   PROVIDE mpi_master nucl_coord nucl_charge nucl_num
+   if (disk_access_nuclear_repulsion.EQ.'Read') then
+     logical                        :: has
+     
+     if (mpi_master) then
+       call ezfio_has_nuclei_nuclear_repulsion(has)
+       if (has) then
+         call ezfio_get_nuclei_nuclear_repulsion(nuclear_repulsion)
+       else
+         print *, 'nuclei/nuclear_repulsion not found in EZFIO file'
+         stop 1
+       endif
+       print*, 'Read nuclear_repulsion'
+     endif
+     IRP_IF MPI
+      include 'mpif.h'
+      integer                        :: ierr
+      call MPI_BCAST( nuclear_repulsion, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+      if (ierr /= MPI_SUCCESS) then
+        stop 'Unable to read nuclear_repulsion with MPI'
+      endif
+     IRP_ENDIF
+     
+     
+   else
+     
+     integer                        :: k,l
+     double precision               :: Z12, r2, x(3)
+     nuclear_repulsion = 0.d0
+     do l = 1, nucl_num
+       do  k = 1, nucl_num
+         if(k == l) then
+           cycle
+         endif
+         Z12 = nucl_charge(k)*nucl_charge(l)
+         x(1) = nucl_coord(k,1) - nucl_coord(l,1)
+         x(2) = nucl_coord(k,2) - nucl_coord(l,2)
+         x(3) = nucl_coord(k,3) - nucl_coord(l,3)
+         r2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
+         nuclear_repulsion += Z12/dsqrt(r2)
+       enddo
+     enddo
+     nuclear_repulsion *= 0.5d0
+   end if
 
-   ELSE
-
-      integer                        :: k,l
-      double precision               :: Z12, r2, x(3)
-      nuclear_repulsion = 0.d0
-      do l = 1, nucl_num
-         do  k = 1, nucl_num
-           if(k == l) then
-             cycle
-           endif
-           Z12 = nucl_charge(k)*nucl_charge(l)
-           x(1) = nucl_coord(k,1) - nucl_coord(l,1)
-           x(2) = nucl_coord(k,2) - nucl_coord(l,2)
-           x(3) = nucl_coord(k,3) - nucl_coord(l,3)
-           r2 = x(1)*x(1) + x(2)*x(2) + x(3)*x(3)
-           nuclear_repulsion += Z12/dsqrt(r2)
-         enddo
-      enddo
-      nuclear_repulsion *= 0.5d0
-   END IF
-
-   call write_time(output_Nuclei)
-   call write_double(output_Nuclei,nuclear_repulsion,                &
-       'Nuclear repulsion energy')
-
-   IF (disk_access_nuclear_repulsion.EQ.'Write') THEN
-        call ezfio_set_nuclei_nuclear_repulsion(nuclear_repulsion)
-   END IF
+   call write_time(6)
+   call write_double(6,nuclear_repulsion,'Nuclear repulsion energy')
+   
+   if (disk_access_nuclear_repulsion.EQ.'Write') then
+     if (mpi_master) then
+       call ezfio_set_nuclei_nuclear_repulsion(nuclear_repulsion)
+     endif
+   endif
+   
+   
 END_PROVIDER
 
-BEGIN_PROVIDER [ character*(128), element_name, (78)] 
- BEGIN_DOC
- ! Array of the name of element, sorted by nuclear charge (integer)
- END_DOC
- element_name(1) = 'H'
- element_name(2) = 'He'
- element_name(3) = 'Li'
- element_name(4) = 'Be'
- element_name(5) = 'B'
- element_name(6) = 'C'
- element_name(7) = 'N'
- element_name(8) = 'O'
- element_name(9) = 'F'
- element_name(10) = 'Ne'
- element_name(11) = 'Na'
- element_name(12) = 'Mg'
- element_name(13) = 'Al'
- element_name(14) = 'Si'
- element_name(15) = 'P'
- element_name(16) = 'S'
- element_name(17) = 'Cl'
- element_name(18) = 'Ar'
- element_name(19) = 'K'
- element_name(20) = 'Ca'
- element_name(21) = 'Sc'
- element_name(22) = 'Ti'
- element_name(23) = 'V'
- element_name(24) = 'Cr'
- element_name(25) = 'Mn'
- element_name(26) = 'Fe'
- element_name(27) = 'Co'
- element_name(28) = 'Ni'
- element_name(29) = 'Cu'
- element_name(30) = 'Zn'
- element_name(31) = 'Ga'
- element_name(32) = 'Ge'
- element_name(33) = 'As'
- element_name(34) = 'Se'
- element_name(35) = 'Br'
- element_name(36) = 'Kr'
- element_name(37) = 'Rb'
- element_name(38) = 'Sr'
- element_name(39) = 'Y'
- element_name(40) = 'Zr'
- element_name(41) = 'Nb'
- element_name(42) = 'Mo'
- element_name(43) = 'Tc'
- element_name(44) = 'Ru'
- element_name(45) = 'Rh'
- element_name(46) = 'Pd'
- element_name(47) = 'Ag'
- element_name(48) = 'Cd'
- element_name(49) = 'In'
- element_name(50) = 'Sn'
- element_name(51) = 'Sb'
- element_name(52) = 'Te'
- element_name(53) = 'I'
- element_name(54) = 'Xe'
- element_name(55) = 'Cs'
- element_name(56) = 'Ba'
- element_name(57) = 'La'
- element_name(58) = 'Ce'
- element_name(59) = 'Pr'
- element_name(60) = 'Nd'
- element_name(61) = 'Pm'
- element_name(62) = 'Sm'
- element_name(63) = 'Eu'
- element_name(64) = 'Gd'
- element_name(65) = 'Tb'
- element_name(66) = 'Dy'
- element_name(67) = 'Ho'
- element_name(68) = 'Er'
- element_name(69) = 'Tm'
- element_name(70) = 'Yb'
- element_name(71) = 'Lu'
- element_name(72) = 'Hf'
- element_name(73) = 'Ta'
- element_name(74) = 'W'
- element_name(75) = 'Re'
- element_name(76) = 'Os'
- element_name(77) = 'Ir'
- element_name(78) = 'Pt'
+ BEGIN_PROVIDER [ character*(4), element_name, (0:127)]
+&BEGIN_PROVIDER [ double precision, element_mass, (0:127) ]
+   BEGIN_DOC
+   ! Array of the name of element, sorted by nuclear charge (integer)
+   END_DOC
+   integer                        :: iunit
+   integer, external              :: getUnitAndOpen
+   character*(128)                :: filename
+   if (mpi_master) then
+     call getenv('QP_ROOT',filename)
+     filename = trim(filename)//'/data/list_element.txt'
+     iunit = getUnitAndOpen(filename,'r')
+     element_mass(:) = 0.d0
+     do i=0,127
+       write(element_name(i),'(I4)') i
+     enddo
+     character*(80)                 :: buffer, dummy
+     do
+     read(iunit,'(A80)',end=10) buffer
+     read(buffer,*) i ! First read i
+     read(buffer,*) i, element_name(i), dummy, element_mass(i)
+   enddo
+   10 continue
+   close(10)
+ endif
 
+ IRP_IF MPI
+  include 'mpif.h'
+  integer                        :: ierr
+  call MPI_BCAST( element_name, 128*4, MPI_CHARACTER, 0, MPI_COMM_WORLD, ierr)
+  if (ierr /= MPI_SUCCESS) then
+    stop 'Unable to read element_name with MPI'
+  endif
+  call MPI_BCAST( element_mass, 128, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  if (ierr /= MPI_SUCCESS) then
+    stop 'Unable to read element_name with MPI'
+  endif
+ IRP_ENDIF
+ 
 END_PROVIDER
+
+BEGIN_PROVIDER [ double precision, center_of_mass, (3) ]
+  implicit none
+  BEGIN_DOC
+  ! Center of mass of the molecule
+  END_DOC
+  integer                        :: i,j
+  double precision               :: s
+  center_of_mass(:) = 0.d0
+  s = 0.d0
+  do i=1,nucl_num
+    do j=1,3
+      center_of_mass(j) += nucl_coord(i,j)* element_mass(int(nucl_charge(i)))
+    enddo
+    s += element_mass(int(nucl_charge(i)))
+  enddo
+  s = 1.d0/s
+  center_of_mass(:) = center_of_mass(:)*s
+END_PROVIDER
+
